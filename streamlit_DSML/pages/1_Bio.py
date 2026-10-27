@@ -4,16 +4,24 @@ from pathlib import Path
 st.title("👋 My Bio")
 
 # ---------- TODO: Replace with your own info ----------
-NAME = "Your Name"
-PROGRAM = "Your Program / Major / Role"
+NAME = "Isabella Eaton"
+PROGRAM = "Department of Computer Science / Data Science and Machine Learning major / Undergraduate Research Assistant (Claw Lab)"
 INTRO = (
-    "Write 2–3 sentences about yourself: what you’re studying/working on, "
-    "what excites you about data visualization or computing, etc."
+    "I am a current undergraduate research assisant with the Claw Lab at the Cu Anschutz Department of Biomedical Informatics.
+    My research focuses on utilizing mixed-methods approaches to understand perspectives on improving culturally responsible 
+    genetics research with historically underrepresented communities. My post-grad aspirations are to continue
+    working within research. My post-grad research intrests include maternal and child health, specifically understanding reproductive health conditions that 
+    are understudued in historically underrepresented populations."
+    "What excites me the most about data visualizationa and computation is being able to create visualizations and programs that make research 
+    and education accessible and easily communicable to a variety of demographics."
 )
 FUN_FACTS = [
-    "I love …",
-    "I’m learning …",
-    "I want to build …",
+    "I love ",
+    "I’m learning how to conduct a qualitative thematic analysis on transcribed deliberation recordings.",
+    "I want to build a website that helps youth learn about ethic studies events in their home states. 
+    This is inspired by the in-person Aquetza youth Chicano studies program at CU-Boulder. 
+    This would include grade-level appropriate reading resources and an interactive map of historical events.
+    I would like this website to be visible in Enligh and Spanish to be more language-accesible.",
 ]
 
 
