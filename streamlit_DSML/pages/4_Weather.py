@@ -17,7 +17,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🌤️ Live Colorado Weather Demo (Open-Meteo)")
-st.caption("Track live temperature over time across multiple cities with caching (`ttl=600`), session state history, and auto-refresh.")
+st.caption("Tracking real-time temperature in Mountain Time (MDT/MST) with session state history and auto-refresh.")
 
 # --- City Coordinates Dictionary ---
 CITIES = {
@@ -27,7 +27,7 @@ CITIES = {
     "Colorado Springs": (38.8339, -104.8214)
 }
 
-# --- Sidebar / Top Controls for City & Refresh ---
+# --- Controls Layout ---
 col_ctrl1, col_ctrl2, col_ctrl3 = st.columns([2, 2, 2])
 
 with col_ctrl1:
@@ -38,34 +38,27 @@ wurl = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&c
 HEADERS = {"User-Agent": "msudenver-dataviz-class/1.0", "Accept": "application/json"}
 
 with col_ctrl2:
-    refresh_sec = st.slider("Refresh every (sec)", 10, 120, 30)
+    refresh_sec = st.slider("Refresh every (sec)", 10, 120, 10)
 
 with col_ctrl3:
-    auto_refresh = st.toggle("Enable auto-refresh", value=False)
+    auto_refresh = st.toggle("Enable auto-refresh", value=True)
 
-st.caption(f"Viewing weather for **{selected_city}** | Last refreshed at: {time.strftime('%H:%M:%S')}")
-
-# Fallback sample data in case of network issues
-SAMPLE_WEATHER_DF = pd.DataFrame([{
-    "time": pd.Timestamp.now(),
-    "temperature": 20.0,
-    "wind": 5.0
-}])
+# Accurate Mountain Time display
+current_mountain_time = pd.Timestamp.now(tz="America/Denver")
+st.caption(f"Viewing weather for **{selected_city}** | Current Mountain Time: {current_mountain_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
 # --- Cached Fetch Function ---
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def get_weather(url: str):
-    """Fetch current weather safely from Open-Meteo with caching (10-minute TTL)."""
+    """Fetch current weather safely from Open-Meteo."""
     try:
         r = requests.get(url, timeout=10, headers=HEADERS)
         r.raise_for_status()
         j = r.json().get("current", {})
-        df = pd.DataFrame([{
-            "time": pd.to_datetime(j.get("time")),
+        return {
             "temperature": j.get("temperature_2m"),
             "wind": j.get("wind_speed_10m")
-        }])
-        return df, None
+        }, None
     except requests.RequestException as e:
         return None, f"Network/HTTP error: {e}"
 
@@ -76,23 +69,31 @@ if "city_histories" not in st.session_state:
 if selected_city not in st.session_state.city_histories:
     st.session_state.city_histories[selected_city] = pd.DataFrame(columns=["time", "temperature", "wind"])
 
-# --- Fetch and Append Data ---
-new_df, err = get_weather(wurl)
+# --- Fetch Data and Log with Live Local Timestamp ---
+weather_data, err = get_weather(wurl)
 
 if err:
-    st.warning(f"{err}\nShowing fallback sample data so the demo continues.")
-    new_df = SAMPLE_WEATHER_DF.copy()
+    st.warning(f"{err}\nUsing fallback sample data.")
+    weather_data = {"temperature": 20.0, "wind": 5.0}
 
-if new_df is not None and not new_df.empty:
-    latest_time = new_df["time"].iloc[0]
+if weather_data:
+    # Use exact local fetch time so every 10-second refresh logs a new distinct point on the chart
+    fetch_time = pd.Timestamp.now(tz="America/Denver").strftime("%Y-%m-%d %H:%M:%S")
+    
+    new_row = pd.DataFrame([{
+        "time": fetch_time,
+        "temperature": weather_data["temperature"],
+        "wind": weather_data["wind"]
+    }])
+    
     history = st.session_state.city_histories[selected_city]
     
-    # Append to session state history if it's a new timestamp
-    if history.empty or latest_time not in history["time"].values:
-        st.session_state.city_histories[selected_city] = pd.concat([history, new_df], ignore_index=True)
-        # Keep the last 50 data points per city to prevent memory bloat
-        if len(st.session_state.city_histories[selected_city]) > 50:
-            st.session_state.city_histories[selected_city] = st.session_state.city_histories[selected_city].iloc[-50:]
+    # Append new data point to session history
+    st.session_state.city_histories[selected_city] = pd.concat([history, new_row], ignore_index=True)
+    
+    # Keep last 50 points to prevent memory bloat
+    if len(st.session_state.city_histories[selected_city]) > 50:
+        st.session_state.city_histories[selected_city] = st.session_state.city_histories[selected_city].iloc[-50:]
 
 # --- Display Metrics & Line Plot ---
 current_history = st.session_state.city_histories[selected_city]
@@ -101,7 +102,7 @@ if not current_history.empty:
     m1, m2, m3 = st.columns(3)
     m1.metric(f"Current Temp ({selected_city})", f"{latest['temperature']} °C")
     m2.metric("Wind Speed", f"{latest['wind']} km/h")
-    m3.metric("Data Points Logged", len(current_history))
+    m3.metric("Logged Points", len(current_history))
 
     # Tidy line plot for temperature over time
     fig = px.line(
@@ -109,12 +110,12 @@ if not current_history.empty:
         x="time", 
         y="temperature", 
         markers=True, 
-        title=f"Temperature History — {selected_city}",
-        labels={"time": "Timestamp", "temperature": "Temperature (°C)"}
+        title=f"Live Temperature History — {selected_city} (Mountain Time)",
+        labels={"time": "Local Timestamp", "temperature": "Temperature (°C)"}
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander(f"View Raw Weather History ({selected_city})"):
+    with st.expander(f"View Raw Weather History Table ({selected_city})"):
         st.dataframe(current_history, use_container_width=True)
 
 # --- Auto-refresh Execution ---
