@@ -43,9 +43,9 @@ with col_ctrl2:
 with col_ctrl3:
     auto_refresh = st.toggle("Enable auto-refresh", value=True)
 
-# Accurate Mountain Time display
+# Explicit local Mountain Time timestamp
 current_mountain_time = pd.Timestamp.now(tz="America/Denver")
-st.caption(f"Viewing weather for **{selected_city}** | Current Mountain Time: {current_mountain_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+st.caption(f"Viewing weather for **{selected_city}** | Last Refreshed (Mountain Time): **{current_mountain_time.strftime('%Y-%m-%d %H:%M:%S %Z')}**")
 
 # --- Cached Fetch Function ---
 @st.cache_data(ttl=60, show_spinner=False)
@@ -69,7 +69,7 @@ if "city_histories" not in st.session_state:
 if selected_city not in st.session_state.city_histories:
     st.session_state.city_histories[selected_city] = pd.DataFrame(columns=["time", "temperature", "wind"])
 
-# --- Fetch Data and Log with Live Local Timestamp ---
+# --- Fetch Data and Log with Mountain Time Timestamp ---
 weather_data, err = get_weather(wurl)
 
 if err:
@@ -77,8 +77,7 @@ if err:
     weather_data = {"temperature": 20.0, "wind": 5.0}
 
 if weather_data:
-    # Use exact local fetch time so every 10-second refresh logs a new distinct point on the chart
-    fetch_time = pd.Timestamp.now(tz="America/Denver").strftime("%Y-%m-%d %H:%M:%S")
+    fetch_time = pd.Timestamp.now(tz="America/Denver").strftime("%H:%M:%S")
     
     new_row = pd.DataFrame([{
         "time": fetch_time,
@@ -111,7 +110,7 @@ if not current_history.empty:
         y="temperature", 
         markers=True, 
         title=f"Live Temperature History — {selected_city} (Mountain Time)",
-        labels={"time": "Local Timestamp", "temperature": "Temperature (°C)"}
+        labels={"time": "Local Time", "temperature": "Temperature (°C)"}
     )
     st.plotly_chart(fig, use_container_width=True)
 
