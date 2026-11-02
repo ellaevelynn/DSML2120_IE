@@ -3,10 +3,12 @@ Spotify Analytics Dashboard — a page in a multipage Streamlit portfolio.
 Lives in:  pages/1_Sales_Dashboard.py   (your existing app.py is the home page)
 Run from the portfolio folder with:  streamlit run app.py
 """
+import kagglehub
 import numpy as np
 import pandas as pd
 import altair as alt
 import streamlit as st
+from pathlib import Path
 
 # 1. PAGE CONFIG (must be the first Streamlit command on this page)
 st.set_page_config(
@@ -16,18 +18,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# 2. LOAD DATA (Requirement 6: Using Solomon Ameh Spotify Music Dataset)
+# 2. LOAD DATA (Automatically downloads dataset via kagglehub API and caches it)
 @st.cache_data
 def load_data():
-    # Update path to your local copy of the Kaggle CSV file
-    df = pd.read_csv("data/high_popularity_spotify_data.csv")
+    path = kagglehub.dataset_download("solomonameh/spotify-music-dataset")
+    csv_file = Path(path) / "high_popularity_spotify_data.csv"
+    
+    df = pd.read_csv(csv_file)
     
     # Parse release date and extract release month/year
     if "track_album_release_date" in df.columns:
         df["release_date"] = pd.to_datetime(df["track_album_release_date"], errors="coerce")
         df["month"] = df["release_date"].dt.to_period("M").dt.to_timestamp()
     else:
-        # Fallback date creation if missing
         df["month"] = pd.date_range("2024-01-01", periods=len(df), freq="h")
 
     # Rename key columns to standardize dashboard processing
@@ -39,9 +42,7 @@ def load_data():
         "track_artist": "artist"
     })
     
-    # Ensure numeric types
     df["popularity"] = pd.to_numeric(df["popularity"], errors="coerce").fillna(0)
-    
     return df
 
 df = load_data()
@@ -49,7 +50,6 @@ df = load_data()
 # 3. SIDEBAR CONTROLS & FILTERS
 st.sidebar.header("Filter Options")
 
-# Genre Multi-select Filter
 genres = df["genre"].dropna().unique()
 selected_genres = st.sidebar.multiselect(
     "Select Genre(s)",
@@ -65,7 +65,7 @@ selected_subgenres = st.sidebar.multiselect(
     default=subgenres
 )
 
-# Filter dataframe using updated boolean mask
+# Filter dataframe using boolean mask
 mask = (
     df["genre"].isin(selected_genres) & 
     (df["subgenre"].isin(selected_subgenres) if len(subgenres) > 0 else True)
@@ -76,12 +76,11 @@ filtered_df = df[mask]
 st.title("🎵 Spotify Music & Track Popularity Dashboard")
 st.markdown("Explore track popularity, audio feature breakdowns, and genre insights from the Spotify Music Dataset.")
 
-# Requirement 3: Four columns for KPIs (including Average Monthly Metrics)
+# Requirement 3: Four columns for KPIs (including Average Monthly Popularity)
 total_tracks = len(filtered_df)
 avg_popularity = filtered_df["popularity"].mean() if total_tracks > 0 else 0
 avg_danceability = filtered_df["danceability"].mean() if "danceability" in filtered_df.columns else 0
 
-# Calculate Average Monthly Popularity Index
 monthly_grouped = filtered_df.groupby("month")["popularity"].mean()
 avg_monthly_popularity = monthly_grouped.mean() if not monthly_grouped.empty else 0
 
@@ -114,7 +113,7 @@ with col3:
 
 st.markdown("---")
 
-# Requirement 4: Three Tabs (Overview, Trends, and Regional/Genre Breakdown Bar Chart)
+# Requirement 4: Three Tabs (Overview, Trends, and Genre Breakdown Bar Chart)
 tab1, tab2, tab3 = st.tabs(["📊 Track Data", "📈 Popularity Trends", "🎧 Genre Distribution"])
 
 with tab1:
