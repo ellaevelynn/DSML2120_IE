@@ -27,3 +27,6 @@ with st.expander("How this app is organized (for students)"):
     )
 
 st.caption("Built with Streamlit • Class template")
+# Requirement 5: Link to the sales dashboard page
+st.page_link("pages/1_Sales_Dashboard.py", label="See my dashboard", icon="☕")
+
