@@ -11,12 +11,21 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# --- CUSTOM COLOR PALETTE (Purple, Blue, Green Theme) ---
+CUSTOM_COLORS = [
+    "#8e44ad",
+    "#2980b9",
+    "#27ae60",
+    "#9b59b6",
+    "#3498db",
+    "#2ecc71",
+]
+
 
 # --- DATA LOADING & CACHING ---
 @st.cache_data
 def load_data():
   """Loads the student performance dataset from the repository CSV file."""
-  # Adjust path if needed to match your repo structure: data/student_performance.csv
   df = pd.read_csv("data/student_performance.csv")
   return df
 
@@ -25,7 +34,6 @@ def load_data():
 try:
   df_raw = load_data()
 except FileNotFoundError:
-  # Fallback synthetic data matching 400 students x 3 courses schema for immediate preview
   np.random.seed(42)
   n = 400
   df_raw = pd.DataFrame({
@@ -43,7 +51,6 @@ except FileNotFoundError:
   })
 
 # --- DATA CLEANING & PREPROCESSING ---
-# Handle blank values by dropping them as per requirements
 initial_row_count = len(df_raw)
 df_clean = df_raw.dropna()
 rows_dropped = initial_row_count - len(df_clean)
@@ -55,25 +62,21 @@ st.sidebar.markdown(
     "Use the controls below to filter and explore the student dataset."
 )
 
-# 1. Multiselect for Major
 all_majors = sorted(df_clean["major"].unique().tolist())
 selected_majors = st.sidebar.multiselect(
     "Filter by Major", options=all_majors, default=all_majors
 )
 
-# 2. Multiselect for Class Level
 all_classes = sorted(df_clean["class level"].unique().tolist())
 selected_classes = st.sidebar.multiselect(
     "Filter by Class Level", options=all_classes, default=all_classes
 )
 
-# 3. Multiselect for Grade
 all_grades = sorted(df_clean["grade"].unique().tolist())
 selected_grades = st.sidebar.multiselect(
     "Filter by Grade", options=all_grades, default=all_grades
 )
 
-# 4. Slider for Work Hours
 min_work = int(df_clean["work hours"].min())
 max_work = int(df_clean["work hours"].max())
 work_range = st.sidebar.slider(
@@ -83,7 +86,6 @@ work_range = st.sidebar.slider(
     value=(min_work, max_work),
 )
 
-# 5. Slider for Attendance Percentage
 min_att = int(df_clean["attendance"].min())
 max_att = int(df_clean["attendance"].max())
 att_range = st.sidebar.slider(
@@ -93,7 +95,6 @@ att_range = st.sidebar.slider(
     value=(min_att, max_att),
 )
 
-# Caption explaining missing value handling
 st.sidebar.caption(
     f"Null values in this dataset are automatically dropped (`dropna()`)."
     f" ({rows_dropped} rows removed)."
@@ -116,7 +117,6 @@ st.markdown(
     " attendance impact academic achievement."
 )
 
-# Check if filters result in zero rows
 if filtered_df.empty:
   st.warning(
       "⚠️ No records match your selected filter criteria. Please adjust your"
@@ -144,13 +144,13 @@ else:
 
   with chart_col1:
     st.subheader("Study Time vs. Final Score")
-    # Interactive Plotly scatter plot with OLS trendline
     fig_scatter = px.scatter(
         filtered_df,
         x="study hours",
         y="final score",
         color="major",
         trendline="ols",
+        color_discrete_sequence=CUSTOM_COLORS,
         labels={
             "study hours": "Study Hours per Week (hrs/wk)",
             "final score": "Final Score (pts)",
@@ -166,7 +166,6 @@ else:
 
   with chart_col2:
     st.subheader("Work Hour & Performance Distribution")
-    # Create binned work hours for box plot comparison
     bins = [-1, 10, 20, 30, 45]
     labels = ["0-10 hrs", "11-20 hrs", "21-30 hrs", "31-40 hrs"]
     filtered_df["work_bin"] = pd.cut(
@@ -178,6 +177,7 @@ else:
         x="work_bin",
         y="final score",
         color="work_bin",
+        color_discrete_sequence=CUSTOM_COLORS,
         labels={
             "work_bin": "Work Hour Bins (hrs/wk)",
             "final score": "Final Score (pts)",
@@ -199,7 +199,6 @@ else:
 
   with row2_col1:
     st.subheader("Attendance & Class Level Performance Tiers")
-    # Aggregate data by class level for multi-category bar chart
     class_agg = (
         filtered_df.groupby("class level")[["attendance", "final score"]]
         .mean()
@@ -222,6 +221,7 @@ else:
         y="Value",
         color="Metric",
         barmode="group",
+        color_discrete_sequence=CUSTOM_COLORS,
         labels={
             "class level": "Class Level",
             "Value": "Score / Percentage",
